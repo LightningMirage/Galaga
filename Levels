@@ -1,0 +1,462 @@
+//Enemies are displaying and by shooting them, they disappear. //<>//
+
+//adding all the sounds needed
+import processing.sound.*;
+SoundFile pew;
+SoundFile click;
+SoundFile enter;
+SoundFile hurt;
+SoundFile song;
+SoundFile levelup;
+
+float [] enemyPos = new float[80];  //(x,y)
+//Made it twice the ammount of enemies so that each enemy has 2 values here.
+//The first 40 values are the Y axis, the other half is the X.
+
+
+PImage enemy_1, enemy_2, enemy_3, enemy_4;
+PImage[] explosion = new PImage[71];
+PImage ship, bullet;
+PFont font;
+boolean game, info, start, lost;
+boolean songg = true;
+int score, highscore, choice;
+
+enemy[] e = new enemy[40];
+stars[] s = new stars[100];
+Ship player = new Ship();
+Bullet[] bullets;
+
+boolean keyPressed = false, up = false, right = false, left = false;
+
+boolean defaultPos = false;
+boolean crossPos = false;
+boolean diamondPos = false;
+boolean circlePos = false;
+boolean heartPos = false;
+
+
+boolean attack = false;
+boolean death = false;
+int attackTimer = 0;
+int [] aMob = {10, 20, 30, 35};
+int level = 1;
+int enemySpeed = 2;
+
+
+
+
+void checkIfDead(enemy[] e)
+{
+  int count = 1;
+
+  for (int i = 0; i < e.length; i++)
+  {
+    if (enemyPos[40+i] < 0)
+      count++;
+  }
+
+  if (count == 41) {
+    level++;
+    levelup.play();
+  }
+
+  if (level == 6)
+  {
+    level = 1;
+    defaultPos = false;
+    crossPos = false;
+    diamondPos = false;
+    circlePos = false;
+    heartPos = false;
+    enemySpeed *= 2;
+  }
+}
+
+
+
+void keyPressed() {
+  player.setMove(keyCode, true);
+
+  if ((keyCode == UP || key == 'w' || keyCode == ' ') && game == true ) {
+    pew.play();
+    up = true;
+  }
+
+  if (keyCode == UP && start == true) {
+    triangle(140, (height/2)-13, 120, (height/2)-22, 120, (height/2)-4);
+    fill(0);
+    triangle(140, (height/1.74)-13, 120, (height/1.74)-22, 120, (height/1.74)-4);
+    choice = 1;
+    click.play();
+  }
+
+  if (keyCode == DOWN && start == true) {
+
+    triangle(140, (height/1.74)-13, 120, (height/1.74)-22, 120, (height/1.74)-4);
+    fill(0);
+    triangle(140, (height/2)-13, 120, (height/2)-22, 120, (height/2)-4);
+    choice = 2;
+    click.play();
+  }
+
+  if (keyCode == ENTER && choice == 1 && start == true) {
+    game = true;
+    info = false;
+    start = false;
+    enter.play();
+  }
+
+
+  if (keyCode == ENTER && choice == 2 && start == true) {
+    drawInfo();
+    info = true;
+    game = false;
+    start = false;
+    enter.play();
+  }
+  if (keyCode == ' ' && choice == 2 && start == false && info == true) {
+    background(0);
+    triangle(140, (height/1.74)-13, 120, (height/1.74)-22, 120, (height/1.74)-4);
+    info = false;
+    game = false;
+    start = true;
+    enter.play();
+  }
+  if (keyCode == ' ' && lost == true) {
+    info = false;
+    game = false;
+    start = true;
+    lost = false;
+    background(0);
+    triangle(140, (height/1.74)-13, 120, (height/1.74)-22, 120, (height/1.74)-4);
+    
+    if(score>highscore){
+      highscore = score;
+    }
+    score = 0;
+    
+    enter.play();
+    initMenu();
+  }
+}
+
+void keyReleased() {
+  player.setMove(keyCode, false);
+}
+
+
+void setup()
+{
+//initializing sounds
+  pew = new SoundFile(this, "pew.mp3");
+  hurt = new SoundFile(this, "hurt.wav");
+  click = new SoundFile(this, "click.wav");
+  enter = new SoundFile(this, "enter.wav");
+  levelup = new SoundFile(this, "levelup.wav");
+  song = new SoundFile(this, "song.mp3");
+
+  game = false;
+  info = false;
+  start = true;
+
+  choice = 1;
+  level = 1;
+
+  textAlign(CENTER);
+  background(0);
+  size(560, 800);
+  font = loadFont("Arcade-Classic-48.vlw");
+
+  initMenu();
+  triangle(140, (height/2)-13, 120, (height/2)-22, 120, (height/2)-4);
+
+
+  bullets = new Bullet[100000];
+  for (int i = 0; i < bullets.length; i++) {
+    bullets[i] = new Bullet();
+  }
+
+
+  ship = loadImage("spaceship1.png");
+  bullet = loadImage("bullet.png");
+
+
+  //Enemies
+  enemy_1 = loadImage("enemy_1.png");  
+  enemy_2 = loadImage("enemy_2.png");
+  enemy_3 = loadImage("enemy_3.png");
+  enemy_4 = loadImage("enemy_4.png");
+
+  //Explosion animation
+  for (int i = 0; i < explosion.length; i++)
+  {
+    explosion[i] = loadImage("dead/"+(i+1)+".png");
+  }
+
+  size(560, 800);
+
+  //Creates the enemy objects.
+  for (int i = 0; i < e.length; i++)
+    e[i] = new enemy();
+
+  //Creates the background stars
+  for (int i = 0; i < s.length; i++)
+    s[i] = new stars();
+}
+int x = 0;
+
+void draw()
+{
+  drawScoreboard();
+  updateLives();
+  if (start == true) {
+    initMenu();
+  } else if (info == true) {
+    drawInfo();
+  } else if (game == true) {
+    initGame();
+
+    if (songg == true)
+      song.play();
+
+    songg = false;
+  }
+  if (player.lives == 0) {
+    loseScreen();
+    level = 1;
+
+    song.stop();
+    songg = true;
+
+    defaultPos = false;
+    crossPos = false;
+    diamondPos = false;
+    circlePos = false;
+    heartPos = false;
+  }
+} 
+
+void initGame() {
+  background(0);
+
+  player.move();
+  player.drawPlayer();
+
+
+  if (up) {
+
+    Bullet bullet = bullets[x];
+    //for(Bullet bullet: bullets) {
+    if ( !bullet.getOnScreen() ) { //if not being used / offscreen
+      bullet.first = true;
+      do {
+        bullet.drawBullet(player);    //update + draw the bullet
+        bullet.updateBullet(); 
+        bullet.drawBullet(player);    //update + draw the bullet
+      } while (!collisionDetection1(bullet) && bullet.posY > 0);  //is hasnt hit something and its still on screen 
+      if (x<bullets.length-1)
+        x++;
+      else
+        x = 0;
+    }
+    //}
+
+
+    up = false;
+  } //end of if up
+
+  //Chooses a random enemy to start moving.
+  int attEnemy = (int)random(39);
+
+  //Runs the different levels and the enemy combinations.
+  if (!defaultPos && level == 1)
+    defaultPOS();
+    else if (!heartPos && level == 2) 
+    heartShape();
+    else if (!crossPos && level == 3) 
+    crossShape();
+    else if (!circlePos && level == 4) 
+    circleShape();
+    else if (!diamondPos && level == 5) 
+    diamondShape();
+    
+
+
+
+  if ((int)random(100) == 2 && defaultPos)
+    attack = true;
+
+  attackTimer+= 0.5;
+
+
+  //Makes the enemies move towards the player. (downward)
+  //The speed will increase the higher the level.
+  if (attack)
+  {
+    if (enemyPos[attEnemy] < player.getPosY())
+      enemyPos[attEnemy]+=enemySpeed;
+    else
+      enemyPos[attEnemy]-=enemySpeed;
+
+    //If the enemy made contact with the player.
+    if (dist(enemyPos[40+attEnemy], enemyPos[attEnemy], player.posX+20, player.posY+25) < 40)
+    {
+      player.lives--;
+      enemyPos[attEnemy] = 100;
+      hurt.play();
+
+      for (int j = 0; j < explosion.length; j++)
+        image(explosion[j], player.posX-10, player.posY-10);
+    }
+
+    //Random enemy that will move to a random spot in the screen.
+    if ((int)random(50) == 10)
+    {
+      float tempy = random(height);
+      float tempx = random(width);
+
+      for (int i = 0; i < 10; i++)
+      {
+        if (enemyPos[attEnemy] < tempy)
+          (enemyPos[attEnemy])+=2;
+        else
+          (enemyPos[attEnemy])-=2;
+
+        if (enemyPos[40+attEnemy] < tempx)
+          (enemyPos[40+attEnemy])+=2;
+        else
+          (enemyPos[40+attEnemy])-=2;
+      }
+    }
+  }
+
+
+  //MAIN PART. Enemies are displayed and attack.
+  for (int i = 0; i < (e.length); i++)
+  {
+    e[i].animate(enemyPos[40+i], enemyPos[i], i, attack);
+
+    for (int j = 0; j < aMob.length; j++)
+    {
+      if (enemyPos[39+aMob[j]] > 0)
+        e[aMob[j]].attack(enemyPos[39+aMob[j]], enemyPos[aMob[j]], j);
+    }
+  }
+
+  checkIfDead(e);
+
+  //The background is displayed.
+  for (int i = 0; i < s.length; i++)
+  {
+    s[i].display();
+    s[i].fall();
+  }
+  drawScoreboard();
+}
+
+
+//Check if the enemy was hit by the bullet.
+public boolean collisionDetection1(Bullet obj)
+{
+
+  //Checks distance between bullets and enemies.
+  //If all true, the enemies is killed.
+  for (int i = 0; i < (enemyPos.length)/2; i++)
+  {
+    if (enemyPos[40+i]-20 < obj.posX && obj.posX < enemyPos[40+i]+20)
+    {
+      if (enemyPos[i]-20 < obj.posY && obj.posY < enemyPos[i]+20)
+      {
+        imageMode(CENTER);
+        for (int j = 0; j < explosion.length; j++)
+        {
+          image(explosion[j], enemyPos[40+i], enemyPos[i]);
+        }
+
+        enemyPos[40+i] = -100;
+        obj.hasHit = true;
+
+        score += 100;
+        return true;
+      }
+    }
+  }
+  obj.hasHit = false;
+  return false;
+}
+//draws the starting menu
+void initMenu() {
+  score = 0;
+  if (info == false) {
+    textFont(font, 50);
+    text("Galaga", width/2, 250);
+    textFont(font, 32);
+    text("1 PLAYER", width/2, height/2);
+    text("INSTRUCTIONS", width/2+60, height/1.74);
+    textFont(font, 18);
+    text("TM 2018 Alex Madison Sam LTD.", width/2, height/1.33); 
+    text("AMS CO. LTD. IS LICENSED", width/2, height/1.143);
+    text("BY CAP3032 OF AMERICA INC.", width/2, height/1.09);
+    textFont(font, 25);
+  }
+}
+//keeps the lives updated so the game can end
+void updateLives() {
+  if (player.lives == 0) {
+    lost = true;
+  }
+}
+//displays the lose screen, and sets up for next game
+void loseScreen() {
+  lost = true;
+  game = false;
+  start = false;
+  info = false;
+  background(0);
+  textSize(15);
+  player.lives = 3;
+  text("Sorry, you lost!", width/2, height/2);
+  text("Press Space to Return to Menu.", width/2, 420);
+}
+//draws the scoreboard and keeps it updated
+void drawScoreboard() {
+  textSize(20);
+  fill(255, 0, 0);
+  text("LEVEl", width/7, height/20);
+  text(level, width/7, (height/20)+40);
+  text("HI-SCORE", width/2, height/20);
+  if(score>highscore) {
+  text(score, width/2, (height/20)+40);
+  }
+  else if(highscore>score) {
+    text(highscore, width/2, (height/20)+40);
+  }
+  text("LIVES", width/1.16, height/20);
+  text(player.lives, 480, (height/20)+40);
+  fill(255);
+}
+//draws the game instructions
+void drawInfo() {
+  background(0);
+  text("How to play:", width/2, 100);
+
+  textSize(14);
+  text("Use the arrow keys or WASD to move...", width/2, 200);
+  text("And the up/W/SPACE key to fire!", width/2, 220);
+
+  image(ship, 230, 320, 80, 80);
+  image(bullet, 255, 250, 30, 40);
+
+  textSize(15);
+  text("Try to dodge the enemy bullets!", width/2, 450);
+  text("If you run out of lives, you lose!", width/2, 470);
+  fill(255, 0, 0);
+  text("lives", 332.5, 470);
+  fill(255);
+  text("Destroy all the enemies to advance!", width/2, 550);
+  text("Good luck!", width/2, 570);
+
+  textSize(17);
+  text("Press Space to return to menu", width/2, 700);
+}
